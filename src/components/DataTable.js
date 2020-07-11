@@ -1,35 +1,29 @@
 import React, { useState } from 'react';
-import history from '../data/history.json';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 
 const { createSliderWithTooltip } = Slider;
 const Range = createSliderWithTooltip(Slider.Range);
 
-const DataTable = () => {
-  const snpData = [...history];
+const styles = {
+  color: 'red',
+};
+
+const DataTable = ({ snpData }) => {
   const maxYear = snpData[0].year;
-  var prevReturn = 0;
-  snpData.reverse();
-  const minYear = snpData[0].year;
+  const minYear = snpData[snpData.length - 1].year;
 
   const [userMin, setUserMin] = useState(minYear);
   const [userMax, setUserMax] = useState(maxYear);
-  const [value, setValue] = useState([minYear, maxYear]);
 
   const handleChange = value => {
-    setValue(value);
     setUserMin(value[0]);
     setUserMax(value[1]);
   };
 
-  const styles = {
-    color: 'red',
-  };
-
   const marks = {
-    1926: `${minYear}`,
-    2019: `${maxYear}`,
+    [minYear]: minYear,
+    [maxYear]: maxYear,
   };
 
   return (
@@ -37,8 +31,9 @@ const DataTable = () => {
       <Range
         min={minYear}
         max={maxYear}
-        value={value}
+        value={[userMin, userMax]}
         marks={marks}
+        range={true}
         tipFormatter={value => value}
         onChange={handleChange}
       />
@@ -50,13 +45,15 @@ const DataTable = () => {
             <th>Cumulative Return</th>
           </tr>
           {snpData
-            .filter(data => {
-              return data.year >= userMin && data.year <= userMax;
-            })
+            .filter(data => data.year >= userMin && data.year <= userMax)
+            .sort((a, b) => (a.year < b.year ? -1 : 1))
+            .map((data, index, arr) => ({
+              ...data,
+              cumulativeReturn: arr.slice(0, index + 1).reduce((acc, curr) => {
+                return acc + parseFloat(curr.totalReturn);
+              }, 0),
+            }))
             .map(data => {
-              const totalReturn = parseFloat(data.totalReturn);
-              const currReturn = prevReturn + totalReturn;
-              prevReturn = currReturn;
               return (
                 <tr key={data.year}>
                   <td>{data.year}</td>
@@ -65,10 +62,10 @@ const DataTable = () => {
                   ) : (
                     <td style={styles}>{data.totalReturn}</td>
                   )}
-                  {currReturn > 0 ? (
-                    <td>{currReturn.toFixed(2)}</td>
+                  {data.cumulativeReturn > 0 ? (
+                    <td>{data.cumulativeReturn.toFixed(2)}</td>
                   ) : (
-                    <td style={styles}>{currReturn.toFixed(2)}</td>
+                    <td style={styles}>{data.cumulativeReturn.toFixed(2)}</td>
                   )}
                 </tr>
               );
